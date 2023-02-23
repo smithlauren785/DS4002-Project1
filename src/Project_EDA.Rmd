@@ -1,0 +1,190 @@
+---
+title: "Project EDA"
+author: "Lauren Smith"
+date: "2023-02-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r echo=TRUE, message=F}
+# load in required packages
+
+library(plyr)
+library(rpart)
+library(psych)
+library(pROC)
+library(rpart.plot)
+library(caret)
+library(mlbench)
+library(wordcloud2)
+library(tm)
+library(tidyverse)
+library(tidytext)
+library(qdap)
+```
+
+
+### Exploratory Data Analysis
+
+#### Reading in Data and Cleaning
+```{r, echo=TRUE, message=F}
+
+# Reference: https://towardsdatascience.com/create-a-word-cloud-with-r-bde3e7422e8a
+
+
+# Read in the data and remove special characters
+tweets <- read_csv('tweets.csv')
+tweets$text <- gsub("https\\S*", "", tweets$text) 
+tweets$text <- gsub("@\\S*", "", tweets$text) 
+tweets$text <- gsub("amp", "", tweets$text) 
+tweets$text <- gsub("[\r\n]", "", tweets$text)
+tweets$text <- gsub("[[:punct:]]", "", tweets$text)
+
+# change Date column format
+tweets$date <- as.Date(tweets$date)
+
+# remove all retweets and empty tweets from dataset
+tweets <- tweets %>% filter(isRetweet == FALSE)
+tweets <- tweets %>%
+  filter(text != "")
+
+# set all text to be lowercase and get complete rows only
+tweets$text <- tolower(tweets$text)
+tweets <- tweets[complete.cases(tweets),]
+
+# create column for each target word with a 1 to represent its presence in that tweet
+# and a 0 for its absence
+target_words <- c("wall", "fake news", "media", "democrat", "great", "trump")
+tweets <- tweets %>%
+  mutate(wall = if_else(str_detect(text, "wall"),1,0),
+         fake_news = if_else(str_detect(text, "fake news"),1,0),
+         media = if_else(str_detect(text, "media"),1,0),
+         democrat = if_else(str_detect(text, "democrat"),1,0),
+         great = if_else(str_detect(text, "great"),1,0),
+         trump = if_else(str_detect(text, "trump"),1,0))
+
+
+# Reference: https://www.statology.org/str_detect-in-r/
+
+# create column that with a 1 to represent that one of the target words is in that tweet
+tweets <- tweets %>% mutate(contains_word = case_when(str_detect(tweets$text, "wall") == TRUE ~ 1,
+                                             str_detect(tweets$text, "fake news") == TRUE ~ 1,
+                                             str_detect(tweets$text, "media") == TRUE ~ 1,
+                                             str_detect(tweets$text, "democrat") == TRUE ~ 1,
+                                             str_detect(tweets$text, "great") == TRUE ~ 1,
+                                             str_detect(tweets$text, "trump") == TRUE ~ 1,
+                                             .default = 0))
+
+```
+
+#### Generating WordCloud
+```{r}
+# Reference: https://towardsdatascience.com/create-a-word-cloud-with-r-bde3e7422e8a
+
+# create df with each word in that text column and its frequency
+tweets_words <-  tweets %>%
+ select(text) %>%
+ unnest_tokens(word, text)
+words <- tweets_words %>% dplyr::count(word, sort=TRUE)
+
+# remove all stop words from dataframe
+words$word<- rm_stopwords(words$word, Top200Words)
+
+# create word cloud with all unique words
+wordcloud2(data=words, size=1.6, color='random-dark')
+
+```
+
+#### Tweets by Time Period
+
+
+Pre-election: Before June 16th, 2015
+
+During election: Between June 16th, 2015 and November 8th, 2016
+
+Post election: After November 8th, 2016
+
+
+```{r, warning=FALSE}
+
+# create column that dictates whether tweet was sent before or after the start
+# of the election
+
+tweets <- tweets %>% mutate('TimePeriod' = case_when(
+  tweets$date < "2015-06-16" ~ "Pre",
+  (tweets$date >=  "2015-06-16" & tweets$date <= "2016-11-08") ~ "During",
+  tweets$date > "2016-11-08" ~ "Post"
+))
+tweets$TimePeriod <- ordered(tweets$TimePeriod, levels=c("Pre", "During", "Post"))
+
+# set theme
+my_theme <- theme_bw() + 
+  theme(axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 14), 
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 14),
+        plot.title = element_text(size=14))
+
+# create bar plot to show number of tweets sent in each time period
+ggplot(tweets, aes(x=TimePeriod)) + geom_bar() + geom_text(aes(label = ..count..), stat = "count", vjust = 1.5, colour = "white")
+
+```
+
+#### Proportion of Tweets Containing at Least 1 Word/Phrase in our Hypothesis
+```{r}
+pie(table(tweets$contains_word),labels = c("34598 FALSE","10843 TRUE"), col=c("cadetblue1","cornflowerblue"))
+table(tweets$contains_word)
+
+```
+
+#### Words of interest by election period
+```{r}
+
+plot2 <- ggplot(tweets) +
+  geom_bar(aes(x = contains_word, fill = TimePeriod), position = "fill", color = "black") +
+  scale_fill_manual("Election Period", values = c("Pre" = "lightblue", "During" = "navyblue",
+                                                  "Post" = "blue")) +
+  labs(x = "words present in Tweet", y = "Proportion of Tweets") +
+  my_theme
+plot2
+
+
+```
+
+#### Altering Time Periods
+
+After seeing that the "During" and "Post" election time periods had significantly less
+observations we decided to combine them into one "Post" category. Therefore the new time periods are as follows:
+
+
+Pre-election: Before June 16th, 2015
+
+Post start of election: June 16th, 2015 and After
+
+```{r}
+
+tweets <- tweets[,-17] %>% mutate('TimePeriod' = case_when(
+  tweets$date < "2015-06-16" ~ "Pre",
+  tweets$date >= "2015-06-16" ~ "Post"
+))
+tweets$TimePeriod <- ordered(tweets$TimePeriod, levels=c("Pre", "Post"))
+
+# create bar plot to show number of tweets sent in each time period
+ggplot(tweets, aes(x=TimePeriod)) + geom_bar() + geom_text(aes(label = ..count..), stat = "count", vjust = 1.5, colour = "white")
+
+```
+
+
+#### Write Clean Dataframe to CSV 
+```{r}
+
+write_csv(tweets, "tweets_clean.csv")
+
+```
+
+
+
