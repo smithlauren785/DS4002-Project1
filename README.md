@@ -23,13 +23,17 @@ The original dataset was downloaded from [Kaggle](https://www.kaggle.com/dataset
 | Variable Name  | Description  |
 |---|---|
 | text  | The content of the tweet made  |
+| isRetweet  | Whether or not a tweet is a retweet (TRUE/FALSE)  |
+| isDeleted  | Whether or not a tweet was deleted (TRUE/FALSE)  |
+| device  | Device tweet was sent from |
 | favorites  | Number of likes tweet has  |
 | retweets  | Number of times tweet was retweeted  |
 |  date | Date of the tweet  |
-| isDeleted  | Binary variable showing whether a tweet has been deleted (0 = No, 1 = Yes)  |
-| election_period  | Labels whether tweet was posted pre,post, or during the 2020 election; Pre: Before June 16th, 2015, During: June 16th, 2015 - November 8th, 2016, After: After November 8th, 2016 |
+| isFlagged  | Whether or not a tweet was flagged (TRUE/FALSE)  |
 |  wall, fake_news, media, democrat, great, trump | Binary variables labeling whether these words are present in the tweet (0 = No, 1 = Yes)  |
 | contains_word  | Binary variable labeling whether any of the targeted words are mentioned in the tweet (0 = No, 1 = Yes)  |
+| TimePeriod  | Labels whether tweet was posted pre or post start of the 2016 election; Pre: Before June 16th, 2015 and After: June 16th, 2015 and after |
+
 
 ## FIGURES
 
