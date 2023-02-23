@@ -15,7 +15,7 @@ In order to successfully run the code chunks in the R Markdown files, a few pack
 ## DATA
 
 ### About the Dataset
-The original dataset was downloaded from [Kaggle](https://www.kaggle.com/datasets/codebreaker619/donald-trump-tweets-dataset). Published in 2021, the csv file provides daily tweet data from Donald Trump’s twitter account from May 2009 (when it was created) until January 8 2021 (when his account was blocked). The dataset provided the text, number of favorites and retweets, whether it was deleted, and the date shown in tweets_original.csv. In total we added 8 features, with 7 to identify whether specific words and phrases from our hypothesis were present, and one to identify the election period in which the tweet was posted shown in tweets_new.csv. 
+The original dataset was downloaded from [Kaggle](https://www.kaggle.com/datasets/codebreaker619/donald-trump-tweets-dataset). Published in 2021, the csv file provides daily tweet data from Donald Trump’s twitter account from May 2009 (when it was created) until January 8 2021 (when his account was blocked). The dataset provided the text, number of favorites and retweets, whether it was deleted, retweeted or flagged, the device the tweet was sent from, and the date shown in tweets.csv. In total we added 8 features, with 7 to identify whether specific words and phrases from our hypothesis were present, and one to identify the election period in which the tweet was posted shown in tweets_clean.csv. 
 
 
 ### Data Dictionary
