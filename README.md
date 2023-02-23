@@ -50,4 +50,6 @@ C.  Van den Rul, “How to generate word clouds in R,” Medium, 20-Oct-2019. [O
 
 Zach, “How to use str_detect() function in R (3 examples),” Statology, 07-Apr-2022. [Online]. Available: https://www.statology.org/str_detect-in-r/. [Accessed: 22-Feb-2023]. 
 
+Wright (2022) Decision Trees. https://github.com/UVADS/DS-3001/blob/main/08_DT_Class/Decision%20Trees.Rmd.
+
 
