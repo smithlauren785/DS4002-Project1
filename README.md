@@ -11,6 +11,8 @@ Each file in our src folder is an R Markdown document that can be downloaded and
 ### Code Usage
 In order to successfully run the code chunks in the R Markdown files, a few packages need to be installed. When opening the file in RStudio, a message at the top of the source code will ask you if you would like to install the required packages. Click install. Then run the first code chunk which reads in the required packages. Additonally, download the CSV files in the data folder of the repository and set your working directory to their location. 
 
+There are two R Markdown files with our code for the project: Project_EDA.rmd which demonstrates our data cleaning process and exploratory data analysis and Proj1_ModelBuilding.rmd which shows our model building process. Project_EDA.rmd reads from the tweets.csv file and Proj1_ModelBuilding.rmd reads from the tweets_clean.csv file. 
+
 
 ## DATA
 
