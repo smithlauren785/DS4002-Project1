@@ -55,4 +55,10 @@ Zach, “How to use str_detect() function in R (3 examples),” Statology, 07-Ap
 
 Wright (2022) Decision Trees. https://github.com/UVADS/DS-3001/blob/main/08_DT_Class/Decision%20Trees.Rmd.
 
+Classification | Machine Learning. (n.d.). Google Developers. Retrieved February 14, 2023, from https://developers.google.com/machine-learning/crash-course/classification/video-lecture.
+
+Shantanu Roy. (2021). Donald Trump Tweets Dataset. https://www.kaggle.com/datasets/codebreaker619/donald-trump-tweets-dataset.
+
+Tuychiev, B. (2022, December 9). Comprehensive Guide to Multiclass Classification With Sklearn. Medium.https://towardsdatascience.com/comprehensive-guide-to-multiclass-classification-with-sklearn-127cc500f362.
+
 
