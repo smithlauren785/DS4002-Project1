@@ -43,6 +43,7 @@ The original dataset was downloaded from [Kaggle](https://www.kaggle.com/dataset
 |---|---|
 | Wordcloud of word frequency in Donald Trump's tweets | “Trump” is noticeably the most frequently appearing word, followed by “president” and “thank”. It can also be observed that two of the words in our hypothesis appear with a high frequency (“democrat” and “fake”) |
 | Decision Tree Plot | A majority of the data is classified to be tweeted "Pre" election which leads us to conclude that our hypothesis is incorrect: The presence of the six keywords do not seem to indicate a tweet was posted during/post election. | 
+| Pie Chart of Proportion of Tweets Containing at least one key word/phrase | Approximately 24% of tweets posted by Donald Trump between May 2009 and January 2021 contain at least one of the six words or phrases in our hypothesis. |
  
 
 
