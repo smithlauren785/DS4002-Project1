@@ -1,0 +1,304 @@
+---
+title: 'Trump Tweets: Model Building'
+author: "ALS"
+date: "2023-02-20"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(plyr)
+library(plotly)
+library(randomForest)
+library(rio)
+library(caret)
+library(ROCR)
+library(tidyverse)
+library(rpart)
+library(psych)
+library(pROC)
+library(rpart.plot)
+library(rattle)
+library(kableExtra)
+
+```
+
+# Dataset Preparation
+```{r, echo = FALSE}
+
+tweets <- read.csv("tweets_clean.csv")
+
+#View(tweets)
+nrow(tweets)
+
+# adding trump feature to replace proud_boys
+tweets <- tweets %>% mutate(trump = case_when(str_detect(tweets$text, "trump") == TRUE ~ 1,
+                             TRUE ~ 0))
+
+# changing 'Post' to 'During_Post'
+tweets$TimePeriod[tweets$TimePeriod == 'Post'] <- 'During_Post'
+
+
+# selecting only features and target var
+tweets <- tweets %>%
+  select(wall, fake_news, media, democrat, great, trump, contains_word, TimePeriod)
+
+
+# turn categorical variables into factors (what about text column?)
+to_factor <- c("wall", "fake_news", "media", "democrat", "great", "trump", "contains_word", "TimePeriod")
+
+tweets[,to_factor] <- lapply(tweets[,to_factor], as.factor)
+
+str(tweets)
+
+
+```
+
+
+# Base rate/prevalence calculations
+```{r, echo = FALSE}
+
+# get total rows as denom
+tot_rows <- nrow(tweets)
+
+pre_election <- tweets %>% filter(TimePeriod == "Pre")
+ratePre <- nrow(pre_election)/tot_rows
+
+post_election <- tweets %>% filter(TimePeriod == "During_Post")
+ratePost <- nrow(post_election)/tot_rows
+
+paste("Pre-Election Base Rate:", round(ratePre,3))
+paste("During/Post-Election Base Rate:", round(ratePost,3))
+
+
+# check target var levels
+levels(tweets$TimePeriod)
+
+```
+
+
+# Decision Tree models
+
+
+## DT Model 1
+
+```{r}
+partial_tweets <- tweets %>% select("wall","fake_news", "media", "democrat", "great", "trump",
+                                              "TimePeriod")
+
+str(partial_tweets)
+
+set.seed(1999)
+part_index_1 <- caret::createDataPartition(partial_tweets$TimePeriod,
+                                           times=1,
+                                           p = 0.70,
+                                           groups=1,
+                                           list=FALSE)
+
+train_dt <- partial_tweets[part_index_1, ]
+test_dt <- partial_tweets[-part_index_1, ]
+
+features <- train_dt[,-7]#dropping 7 because it's target variable. 
+
+target <- train_dt$TimePeriod
+fitControl <- trainControl(method = "repeatedcv",   # cross validation
+                          number = 10,
+                          repeats = 5,
+                          classProbs = TRUE,
+                          summaryFunction = twoClassSummary) 
+
+tree.grid <- expand.grid(maxdepth=c(3,4,5,7,9,11))  # expand grid
+
+set.seed(1984)
+
+
+
+DT1 <- train(x=features,
+                y=as.factor(target),
+                method="rpart2",#type of model uses maxdepth to select a model
+                trControl=fitControl,#previously created
+                tuneGrid=tree.grid,#expanded grid
+                metric="ROC")#selected on of the metrics available from two variable summary.
+
+## Viewing the tree
+rpart.plot(DT1$finalModel,type=4,extra=101) # 5 nodes works best
+
+print(DT1)
+
+
+
+```
+
+### Viewing Results
+```{r}
+results_table <- rpart.rules(DT1$finalModel)
+
+adjust_thres <- function(x, y, z) {
+  #x=pred_probablities, y=threshold, z=tune_outcome
+  thres <- as.factor(ifelse(x > y, "During_Post","Pre"))
+  confusionMatrix(thres, z, positive = "During_Post", dnn=c("Prediction", "Actual"), mode = "everything")
+}
+
+predictandCM<- function(model,data,modeltype,ref)
+{
+  #model using, data going into the model, and output type for predict function
+  pred <- predict(model,data,type=modeltype)
+  confusionMatrix(pred, reference=ref, positive = 'During_Post')
+}
+
+# ROC Curve
+
+pred_probs <- predict(DT1, test_dt, test_dt$TimePeriod, type="prob") # for ROC
+head(pred_probs)
+roc(test_dt$TimePeriod, pred_probs$During_Post, plot = TRUE)
+  
+# results for threshold 0.5 - Model output, Confusion Matrix & Var imp
+  
+predictandCM(DT1,test_dt,"raw",test_dt$TimePeriod)
+
+varImp(DT1)
+
+
+
+## Increase threshold to decrease sensitivity, increase specificity (accuracy for post/during)
+
+
+# results for threshold 0.6 - Confusion Matrix & ROC/AUC
+
+adjust_thres(pred_probs$During_Post,0.4,test_dt$TimePeriod)
+
+#Building the evaluation ROC and AUC using the predicted and original target variables
+
+### gives really bad results when increase threshold, no "Pre" predictions
+
+
+
+```
+
+## Pruning tree
+
+```{r}
+DT2 = rpart(TimePeriod~.,#<- formula, response variable ~ predictors,"." means "use all other variables in data"
+                           method = "class", #<- specify method, use "class" for tree
+                           parms = list(split = "gini"),#<- method for choosing tree split
+                           data = train_dt,#<- data used
+                           control = rpart.control(maxdepth = 10)) #<- includes depth zero, the control for additional options (could use CP, 0.01 is the default)
+
+plotcp(DT2)
+
+rpart.plot(DT2, type =4, extra = 101)
+```
+
+
+
+
+# Random Forest
+
+
+
+### Build test and training sets for RF
+```{r, echo = FALSE}
+
+
+sample = partial_tweets
+sample_rows = nrow(sample)
+
+set.seed(4001) #sample(x, size, replace = FALSE, prob = NULL)
+
+# create test dataset
+test_rows <- sample(sample_rows,
+                   dim(sample)[1]*.10, #start with 10% of our dataset, could do 20%
+                   # but random forest does require more training data because of the 
+                   # sampling so 90% might be a better approach with this small of a dataset
+                   replace = FALSE)# We don't want duplicate samples
+
+train_rf <- partial_tweets[-test_rows,]
+nrow(train_rf)
+test_rf <- partial_tweets[test_rows,]
+nrow(test_rf)
+
+
+#census_train$income = factor(census_train$income)
+#census_test$income = factor(census_test$income)
+
+
+```
+
+## RF Model 1
+
+```{r}
+
+# function to calculate mtry we should use in model function
+mytry_tune <- function(x){
+  xx <- dim(x)[2]-1
+  sqrt(xx)
+}
+
+mytry_tune(sample)
+
+
+RF1 = randomForest(as.factor(TimePeriod)~., 
+                            mtry=mytry_tune(sample),
+                            ntree=1000,
+                            data=train_rf,
+                   method = "class")
+
+
+
+
+# The "oob.times" argument includes the number of times that each data point
+# is not excluded from trees in the random forest.
+
+rf_density <- density(RF1$oob.times)
+plot(rf_density)
+
+```
+### Visualize results
+```{r}
+RF1_error = data.frame(1:nrow(RF1$err.rate),
+                                RF1$err.rate)
+colnames(RF1_error) = c("Number of Trees", "Out of the Box",
+                                 "During_Post", "Pre")
+
+RF1_error$Diff <- RF1_error$Pre - RF1_error$`During_Post`
+
+#View(RF1_error)
+
+
+# OOB error
+
+
+rm(fig)
+fig <- plot_ly(x=RF1_error$`Number of Trees`, y=RF1_error$Diff,name="Diff", type = 'scatter', mode = 'lines')
+fig <- fig %>% add_trace(y=RF1_error$`Out of the Box`, name="OOB_Er")
+fig <- fig %>% add_trace(y=RF1_error$`Pre`, name="Pre-Election")
+fig <- fig %>% add_trace(y=RF1_error$`During_Post`, name="During/Post-Election")
+
+fig
+
+
+# Variable Importance
+
+varImpPlot(RF1)
+
+View(as.data.frame(RF1$importance))
+
+## different results from DT
+```
+### Model Prediction
+```{r}
+RF1_predict = predict(RF1,      #<- a randomForest model
+                            test_rf,      #<- the test data set to use
+                            type = "class",   #<- what results to produce, see the help menu for the options
+                            predict.all = TRUE)
+
+
+RF1_predict$confusion
+
+
+```
+
+
+
